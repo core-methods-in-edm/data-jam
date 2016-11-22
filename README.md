@@ -60,3 +60,89 @@ choir - student sings in choir
 tennis - student plays tennis  
 table.tennis - student plays table tennis  
 running - student runs comptetitively  
+
+```{r}
+#read extra activity data as table
+activity <- read.csv("extra-activity.csv",row.names=1)
+
+#not sure this was needed, maybe I forgot to take it out at some point...
+activity <- as.numeric(activity)
+
+#change yeses and nos to 2,1
+activity2 <- as.data.frame(sapply(activity, as.numeric))
+
+#change 1,2 to 0,1
+activity2 <- ifelse(activity2 == 1, 0, 1)
+
+#read as matrix so that can transpose?
+activity2 <- as.matrix(activity2)
+
+
+#FINALLY people by people (with activities in common?)
+people <- activity2 %*% t(activity2)
+
+#take out the self connections?
+diag(people) <- NA
+
+# too too big, computer sad. 
+p <- graph.adjacency(people,mode="undirected")
+plot(p,layout=layout.fruchterman.reingold, vertex.size=6)
+degree(p)
+betweenness(p)
+
+#take subset of random 20 students so computer doesn't try to die
+activity1 <- dplyr::sample_n(activity, 20, replace = TRUE)
+
+#redo steps from above with random 20 students:
+
+#change yeses and nos to 2,1
+activity2 <- as.data.frame(sapply(activity1, as.numeric))
+
+#change 1,2 to 0,1
+activity2 <- ifelse(activity2 == 1, 0, 1)
+
+#read as matrix so that can transpose?
+activity2 <- as.matrix(activity2)
+
+
+#FINALLY people by people (with activities in common?)
+people2 <- activity2 %*% t(activity2)
+
+#take out self attachments
+diag(people2) <- NA
+
+#doable now?
+p <- graph.adjacency(people2,mode="undirected")
+plot(p,layout=layout.fruchterman.reingold, vertex.size=6)
+
+#need to look into how to read the printouts from these?
+
+degree(p)
+# [1] 37 36 31 35 38 26 38 22  5  5 22 34  8 24 28 24 42 36 39 38
+
+betweenness(p)
+# [1] 2.94042416 0.67859086 0.45984021 1.87601509 2.74531450 0.71596320 2.36959022 0.05353466
+ [9] 0.00000000 0.00000000 0.05353466 9.52803863 0.00000000 4.18571429 8.38298447 7.09749695
+[17] 2.75655469 0.67859086 2.73470558 0.74310698
+
+#try with activities instead of people
+sport <- t(activity2) %*% activity2
+diag(sport) <- NA
+
+a <- graph.adjacency(sport,mode="undirected")
+plot(a,layout=layout.fruchterman.reingold, vertex.size=6)
+
+port <- read.csv("student-data.csv", header = TRUE, sep = ",")
+portsmall <- dplyr::select(port, sex, failures, romantic, G3)
+
+#plotted with the vertices the color of the final grade range (but what's the range to color basis??)
+plot(a,layout=layout.fruchterman.reingold, vertex.size=6, vertex.color=portsmall$G3)
+
+#gives a box top left. but empty.
+legend("topleft", c("1","2","3","4","5"), cex=0.8, fill=colors)
+
+#how do you print a legend? impossible, clearly. 
+
+
+```
+
