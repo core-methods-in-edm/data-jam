@@ -143,6 +143,10 @@ legend("topleft", c("1","2","3","4","5"), cex=0.8, fill=colors)
 
 #how do you print a legend? impossible, clearly. 
 
+#asked on stackoverflow. waiting for mean responses from faceless nameless. 
+
+# http://stackoverflow.com/questions/40768649/is-there-a-simple-way-to-add-a-legend-explain   ing-vertex-colors-to-a-fruchterman
+
 
 ```
 
