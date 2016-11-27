@@ -1,0 +1,82 @@
+---
+title: "data jama"
+author: "Chuheng Hu"
+date: "November 22, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Upload the file:
+```{r}
+E <- read.table("extra-activity.csv", sep = ",", header = TRUE)
+S <- read.table("student-data.csv", sep = ",", header = TRUE)
+
+```
+
+
+```{r}
+install.packages("party", "rpart")
+
+library(rpart)
+library(party)
+library(caret)
+library(dplyr)
+```
+```
+I want to detect if the parents' education together with who is the guardian could predict the family support
+
+```{r}
+#first I select the relevent columns to form a new dataset
+FE<-dplyr::select(S,famsup,Medu,Fedu,guardian)
+#Then split the data into two groups, one as training group the other is the test group
+## 75% of the sample size
+smp_size <- floor(0.7 * nrow(FE))
+## set the seed to make your partition reproductible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(FE)), size = smp_size)
+FE.TR <- FE[train_ind, ]
+FE.TE <- FE[-train_ind, ]
+
+#now I'm try to build a classification tree
+c.tree1 <-  rpart(famsup ~ Medu + Fedu + guardian, method="class", data=FE.TR ,control=rpart.control(minsplit = 1,minbucket = 1,cp=0.001))
+printcp(c.tree1)
+#CP nsplit rel error  xerror     xstd
+#1 0.0216216      0   1.00000 1.00000 0.049320
+#2 0.0115830      5   0.89189 0.91120 0.048291
+#3 0.0038610      6   0.88031 0.91506 0.048341
+#4 0.0015444     10   0.86486 0.94595 0.048724
+#5 0.0012870     18   0.84942 0.96911 0.048990
+#6 0.0010000     21   0.84556 0.96911 0.048990
+
+#the error is a little too high I tried to set a lower cp
+c.tree2 <-  rpart(famsup ~ Medu + Fedu + guardian, method="class", data=FE.TR,control=rpart.control(minsplit = 1,minbucket = 1,cp=0.000001))
+printcp(c.tree2)
+#          CP nsplit rel error  xerror     xstd
+#1 0.02162162      0   1.00000 1.00000 0.049320
+#2 0.01158301      5   0.89189 0.94208 0.048678
+#3 0.00386100      6   0.88031 0.89575 0.048086
+#4 0.00154440     10   0.86486 0.91892 0.048391
+#5 0.00128700     18   0.84942 0.96911 0.048990
+#6 0.00096525     21   0.84556 0.96911 0.048990
+#7 0.00000100     25   0.84170 0.96525 0.048947
+
+# the error is lower but sacrifising part of the complexity cost.
+
+post(c.tree2, file = "tree2.ps", title = "education support from family: 1 -  yes, 2 - no")
+
+```
+I will now use this classification tree to test the test group
+```{r}
+FE.TE$predict <- predict(c.tree2, FE.TE, type = "class")
+table(FE.TE$famsup, FE.TE$predict)
+#      no yes
+# no   28  90
+# yes  22 160
+error=(22+90)/(28+90+22+160)
+#0.3733333
+```
+Turns out the error is pretty low. Thus, the family support could be predicted by the parents' education together with who is the gaurdian
+
