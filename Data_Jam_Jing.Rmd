@@ -1,0 +1,163 @@
+---
+title: "Data_Jam"
+author: "Jing"
+date: "November 26, 2016"
+output: html_document
+---
+
+```{r, eval=FALSE}
+#Read the datasets
+D1<-extra.activity <- read.csv("~/Desktop/HUDK 4050/Data_jam_Jing/extra-activity.csv")
+D2<-student.data <- read.csv("~/Desktop/HUDK 4050/Data_jam_Jing/student-data.csv", header=TRUE)
+```
+
+
+```{r, eval=FALSE}
+#PART 1
+#want to learn about how family background (parental education/job) could affect student performance
+#create a dataframe with variables that related to the family feature
+D3<-dplyr::select(D2,famsize,Pstatus, Medu, Fedu, Mjob, Fjob, guardian, famsup, famrel,G1, G2, G3)
+
+#make the categorical variables numeric
+D3$famsize<-ifelse(D3$famsize=="LE3",0,1)
+D3$Pstatus<-ifelse(D2$Pstatus=="A",0,1)
+D3$guardian<-ifelse(D2$guardian=="father",0,1)
+D3$famsup<-ifelse(D2$famsup=="no",0,1)
+
+#fit the regression model
+model1<- glm( D3$G3 ~D3$Mjob+D3$Fjob+D3$famsize+D3$Pstatus+D3$Medu+D3$Fedu, family = gaussian)
+model1
+summary(model1)
+
+TestMjob<-as.numeric(D3$Mjob)
+TestFjob<-as.numeric(D3$Fjob)
+
+model2<- glm( D3$G3 ~TestMjob+TestFjob+D3$famsize+D3$Pstatus+D3$Medu+D3$Fedu, family = gaussian)
+model2
+summary(model2)
+
+model3<- glm( D3$G3 ~D3$Medu, family = gaussian)
+model3
+
+model4<- glm( D3$G3 ~D3$Medu)
+model4
+summary(model4)
+
+##Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)   9.7174     0.3025  32.122  < 2e-16 ***
+D3$Medu       0.6471     0.1064   6.083 1.68e-09 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+            
+# So the G3 grade is highly correlated with mother's education level based on the model           
+
+```
+
+```{r, eval=FALSE}
+#PART 2
+#Using G2 to Predict G3
+
+install.packages("party", "rpart")
+
+library(rpart)
+library(party)
+
+#grow the tree
+c.tree1 <- rpart(G2 ~ + Medu + Fedu + Mjob + Fjob, method="class", data=D3,control=rpart.control(minsplit=1, minbucket=1, cp=0.0001) ) 
+
+#Look at the error of this tree; examine the results
+printcp(c.tree1)
+
+```
+          CP nsplit rel error  xerror     xstd
+1  0.01845444      0   1.00000 1.00000 0.012386
+2  0.01499423      1   0.98155 1.00346 0.012266
+3  0.00807382      2   0.96655 0.97116 0.013303
+4  0.00692042      3   0.95848 0.97924 0.013059
+5  0.00576701      5   0.94464 0.97924 0.013059
+6  0.00461361      6   0.93887 0.97924 0.013059
+
+```{r, eval=FALSE}
+#Plot the tree
+post(c.tree1, file = "tree1.ps", title = "Parents' Background and Students' Performance")
+
+c.tree2 <- prune(c.tree1, cp = 0.00692042)
+
+#Visualize this tree and compare it to the one I generated earlier
+post(c.tree2, file = "tree2.ps", title = "Parents' Background and Students' Performance") 
+
+#This creates a pdf image of the tree
+
+```
+#Now use both the original tree and the pruned tree to make predictions about the the students in the second data set. Which tree has a lower error rate?
+
+``````{r, eval=FALSE}
+D4<-dplyr::select(D3, Medu, Fedu, Mjob, Fjob, G3)
+
+D4$predict1 <- predict(c.tree1, D4, type = "class")
+
+D4$predict2 <- predict(c.tree2, D4, type = "class")
+
+table(D4$G3, D4$predict1)
+
+table(D4$G3, D4$predict2)
+
+#prediction 1 error rate
+
+#how to caculate the error rate based on the table/matrix??
+```
+      0  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
+  0   2  0  0  2  1  3  7  9  4  9  8  2  2  0  0  0  0
+  1   0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0
+  4   0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0
+  5   0  0  0  0  0  2  3  0  0  1  0  0  0  0  0  0  0
+  6   0  0  0  3  0  1  3  2  2  2  4  0  0  0  0  0  0
+  7   0  0  0  3  0  2  3  3  2  0  1  1  2  0  0  0  0
+  8   0  0  1  1  1  7 15  9  9  4 13  2  2  0  0  0  0
+  9   0  0  0  0  1  3 18 19  5  6  4  2  1  0  0  0  0
+  10  0  0  0  2  1  8 32 37 20 18 17  5  3  0  0  0  0
+  11  0  0  0  4  1  9 19 31 32 22 20  4  4  1  0  0  0
+  12  1  0  0  0  1  3 14  9 16 31 14  8  3  0  0  0  0
+  13  0  0  0  1  1  4 15 13 13 25 29  4  4  0  0  0  0
+  14  0  0  0  1  0  6 11  8  8 20 19  8  8  0  0  0  0
+  15  1  0  0  3  0  1  9  7  5 14 11 20  8  0  0  0  0
+  16  0  0  0  0  0  1  2  2  0 14  7  8 14  2  0  0  0
+  17  0  0  0  1  0  4  3  4  1  4  5  6  7  0  0  0  0
+  18  0  0  0  1  0  0  1  3  2  6  1  4  7  0  2  0  0
+  19  0  0  0  1  0  0  0  0  1  1  0  2  1  0  0  0  0
+  20  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0
+
+```{r, eval=FALSE}
+
+#PART 3
+##pick more actionable variables
+
+D5<-dplyr::select(D2,freetime,goout, Walc, health, absences, G1, G2, G3, forum.posts, levels.complete, avatar.requests, teacher.requests, customize.character, time.in.session, av.seconds.per.task)
+
+model5<- glm( D5$G3 ~D5$freetime+ D5$goout+ D5$Walc+ D5$health+ D5$absences + D5$forum.posts + D5$levels.complete + D5$avatar.requests + D5$av.seconds.per.task + D5$teacher.requests + D5$customize.character + D5$time.in.session, family = gaussian)
+model5
+summary(model5)
+
+model6<- glm( D5$G3 ~ D5$health + D5$forum.posts + D5$avatar.requests + D5$teacher.requests + D5$time.in.session, family = gaussian)
+model6
+summary(model6)
+
+model7<- glm( D5$G3 ~ D5$health + D5$forum.posts + D5$avatar.requests + D5$teacher.requests, family = gaussian)
+model7
+summary(model7)
+
+#Coefficients:
+                     Estimate Std. Error t value Pr(>|t|)    
+(Intercept)         12.795640   0.460674  27.776  < 2e-16 ***
+D5$health           -0.218213   0.070233  -3.107  0.00194 ** 
+D5$forum.posts       0.037096   0.017087   2.171  0.03016 *  
+D5$avatar.requests  -0.126571   0.009595 -13.191  < 2e-16 ***
+D5$teacher.requests  0.035899   0.002637  13.613  < 2e-16 ***
+  
+#So the variables above are predictive of the variable G3, so the model is: G3 = 12.795640 - 0.218213*health + 0.037096*forum.posts - 0.126571*avatar.requests + 0.035899*teacher.requests 
+
+```
+
+
+
