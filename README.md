@@ -60,3 +60,139 @@ choir - student sings in choir
 tennis - student plays tennis  
 table.tennis - student plays table tennis  
 running - student runs comptetitively  
+
+
+
+```{r}
+A1<-read.csv(“student-data.csv”)
+View(A1)
+```
+
+#cleaning data 
+```{r}
+A1$isFemale <- ifelse(A1$sex=="F", 1, 0)
+A1$ISURBAN <- ifelse(A1$address=="U", 1, 0)
+A1$PTOGETHER <- ifelse(A1$Pstatus=="T", 1, 0)
+A1$Mjobhome<- ifelse(A1$Mjob=="at_home", 1, 0)
+A1$Fjobhome<- ifelse(A1$Fjob=="at_home", 1, 0)
+A1$Mjobhealth<- ifelse(A1$Mjob=="health", 1, 0)
+A1$Fjobhealth<- ifelse(A1$Fjob=="health", 1, 0)
+A1$Mjobservice<- ifelse(A1$Mjob=="services", 1, 0)
+A1$Fjobservice<- ifelse(A1$Fjob=="services", 1, 0)
+A1$Mjobteacher<- ifelse(A1$Mjob=="teacher", 1, 0)
+A1$Fjobteacher<- ifelse(A1$Fjob=="teacher", 1, 0)
+A1$reasoncourse<- ifelse(A1$reason=="course", 1, 0)
+A1$reasonreputation<- ifelse(A1$reason=="reputation", 1, 0)
+A1$reasonhome<- ifelse(A1$reason=="home", 1, 0)
+A1$guardiananother←ifelse(A1$guardian==”other”,1,0)
+A1$guardianm0←ifelse(A1$guardian==”mother”,1,0)
+A1$famsup←ifelse(A1$famsup==”Yes”,1,0)
+A1$schoolsup←ifelse(A1$schoolsup==”Yes”,1,0)
+A1$paid←ifelse(A1$paid==”Yes”,1,0)
+A1$activities←ifelse(A1$activities==”Yes”,1,0)
+A1$nursery←ifelse(A1$nursery==”Yes”,1,0)
+A1$higher←ifelse(A1$higher==”Yes”,1,0)
+A1$internet←ifelse(A1$internet==”Yes”,1,0)
+A1$romantic←ifelse(A1$romantic==”Yes”,1,0)
+A1$facebook←ifelse(A1$facebook==”Yes”,1,0)
+```
+#taking out the qualtative and unnecessary variables
+
+```{r}
+A1$grades<-A1$G1+A1$G2+A1$G3
+A1<- subset(newstudent,select=-c(G1,G2,G3,sex,address,Pstatus,Mjob,Fjob,reason))
+ A1<- subset(newstudent,select=-c(school,famsize))
+ extra←read.csv('extra-activity.csv')
+```
+
+
+```{r}
+ A1$grades<-A1$G1+A1$G2+A1$G3
+A1<- subset(newstudent,select=-c(G1,G2,G3,sex,address,Pstatus,Mjob,Fjob,reason))
+ A1<- subset(newstudent,select=-c(school,famsize))
+ extra←read.csv('extra-activity.csv')
+```
+# cleaning up the extra-activity data aka binaries 
+```{r}
+extra$hockey←ifelse(A1$hockey==”Yes”,1,0)
+extra$soccer←ifelse(A1$soccer==”Yes”,1,0)
+extra$dance←ifelse(A1$dance==”Yes”,1,0)
+extra$a.football←ifelse(A1$a.football==”Yes”,1,0)
+extra$comm.service←ifelse(A1$comm.service==”Yes”,1,0)
+extra$choir←ifelse(A1$choir==”Yes”,1,0)
+extra$tennis←ifelse(A1$tennis==”Yes”,1,0)
+extra$table.tennis←ifelse(A1$table.tennis==”Yes”,1,0)
+extra$running←ifelse(A1$running==”Yes”,1,0)
+```
+#merging the clean student data with clean extra activities data by student id 
+```{r}
+ total<-merge(A1,extra, by='id')
+ View(total)
+ total<- subset(total,select=-c(id))
+ library(corrplot)
+```
+
+#correlation matrix. Found that several variables correlated
+# Fedu vs Medu (.644) PTOGETHER vs customize character (-.726) 
+# G1 vs G2 (.854) G1 vs G3 (.806) G2 vs G3 (.909) 
+#avatar requests vs G1 (-.513) time in session vs levels complete (.799) 
+# average sec per task vs levels complete (.709) 
+#average sec per task vs time in session (.587) 
+#football vs hockey (-.575) football vs soccer (-.601) 
+# table tennis vs choir (.554) table tennis vs tennis (-.576) 
+# table tennis vs running (.599) 
+
+```{r}
+COR <- cor(total)
+ View(COR)
+ COR<- subset(COR,select=-c(activities))
+ corrplot(COR, order="AOE", method="circle", tl.pos="lt", type="upper",        
+                  tl.col="black", tl.cex=0.6, tl.srt=45, 
+                  addCoef.col="black", addCoefasPercent = TRUE,
+                  sig.level=0.50, insig = "blank")
+```
+
+#Did not cluster- from vsualizing data did not seem like there are any clear #clusters in the data
+#conducting stepwise to determine 'important' variables
+
+```{r}
+library(MASS)
+fit <- lm(y~.,data=total)
+step <- stepAIC(fit, direction="both")
+step$anova # display results 
+```
+
+#final result of regression 
+
+```{r}
+fit<-lm(total$grades ~ age + Medu + Mjobhealth + Mjobservice + Fjobteacher + 
+             studytime + failures + schoolsup + famsup + paid + higher + 
+             internet + romantic + famrel + goout + health + levels.complete + 
+             avatar.requests + teacher.requests + time.in.session + choir + 
+             table.tennis,data=total)
+ summary(fit)
+ plot(fit)
+```
+
+#regression of all variables predicting grades
+#findings that positive significant predictors of grades are mjobhealth
+#mjobservice fjobteacher studytime higher internet famrel teacherreq tabletennis
+# findings that negative significant predictors of grades are failures schoolsup
+#paid famsup romantic goout health avatarreq timeinsession
+
+ 
+#creating decision tree out of stepwise result
+#tree predicts 60 percent accuracy of predicting score within 5 points of true #value 
+
+```{r}
+ fit1<-rpart(A1$grades~.,data=A1)
+ printcp(fit1)
+ post(fit1, file = "tree2")
+ A1$prediction <- predict(fit1, A1)
+ A1$difference<-A1$grades-A1$prediction
+ summary(A1$difference)
+ A1$accurate <- ifelse(abs(A1$difference) <=5,1, 0)
+ summary(A1$accurate)
+ summary(A1$grades) 
+
+```
